@@ -169,7 +169,7 @@ To launch the complete production stack (MySQL 8.0, Backend Node container, Fron
 docker-compose up --build -d
 ```
 
-- **Frontend**: Access at `http://localhost`
+- **Frontend**: Access at `http://localhost:3000`
 - **Backend API**: Access at `http://localhost:5000/api`
 - **MySQL DB**: Listening on port `3306`
 
