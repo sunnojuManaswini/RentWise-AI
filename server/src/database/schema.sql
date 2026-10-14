@@ -1,0 +1,252 @@
+-- RentWise MySQL Schema
+
+CREATE TABLE IF NOT EXISTS users (
+    id VARCHAR(36) PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(150) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role ENUM('OWNER', 'TENANT') NOT NULL DEFAULT 'TENANT',
+    phone VARCHAR(20),
+    avatar_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS properties (
+    id VARCHAR(36) PRIMARY KEY,
+    owner_id VARCHAR(36) NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    property_type VARCHAR(50) DEFAULT 'APARTMENT',
+    house_flat_no VARCHAR(50),
+    block VARCHAR(50),
+    street VARCHAR(100),
+    road VARCHAR(100),
+    locality VARCHAR(100),
+    city VARCHAR(100) NOT NULL,
+    state VARCHAR(100) NOT NULL,
+    country VARCHAR(100) DEFAULT 'India',
+    pin_code VARCHAR(20),
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    bedrooms INT DEFAULT 1,
+    bathrooms INT DEFAULT 1,
+    area_sqft INT DEFAULT 500,
+    parking_available BOOLEAN DEFAULT TRUE,
+    elevator_available BOOLEAN DEFAULT TRUE,
+    furnishing_status VARCHAR(50) DEFAULT 'SEMI_FURNISHED',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS buildings (
+    id VARCHAR(36) PRIMARY KEY,
+    property_id VARCHAR(36) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS floors (
+    id VARCHAR(36) PRIMARY KEY,
+    building_id VARCHAR(36) NOT NULL,
+    floor_number INT NOT NULL DEFAULT 0,
+    name VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS units (
+    id VARCHAR(36) PRIMARY KEY,
+    floor_id VARCHAR(36) NOT NULL,
+    unit_number VARCHAR(50) NOT NULL,
+    bedrooms INT DEFAULT 1,
+    bathrooms INT DEFAULT 1,
+    area_sqft INT DEFAULT 500,
+    monthly_rent DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    maintenance_charge DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    security_deposit DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    rent_due_day INT DEFAULT 5,
+    status VARCHAR(20) DEFAULT 'VACANT',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (floor_id) REFERENCES floors(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS tenants (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    unit_id VARCHAR(36) NOT NULL,
+    owner_id VARCHAR(36) NOT NULL,
+    status VARCHAR(20) DEFAULT 'ACTIVE',
+    move_in_date DATE,
+    move_out_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE CASCADE,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS rental_agreements (
+    id VARCHAR(36) PRIMARY KEY,
+    unit_id VARCHAR(36) NOT NULL,
+    tenant_id VARCHAR(36) NOT NULL,
+    owner_id VARCHAR(36) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    monthly_rent DECIMAL(10, 2) NOT NULL,
+    security_deposit DECIMAL(10, 2) NOT NULL,
+    notice_period_days INT DEFAULT 30,
+    agreement_status VARCHAR(20) DEFAULT 'ACTIVE',
+    document_url VARCHAR(255),
+    extracted_terms_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS rent_obligations (
+    id VARCHAR(36) PRIMARY KEY,
+    unit_id VARCHAR(36) NOT NULL,
+    tenant_id VARCHAR(36) NOT NULL,
+    owner_id VARCHAR(36) NOT NULL,
+    period_month VARCHAR(20) NOT NULL, -- Format: YYYY-MM
+    due_date DATE NOT NULL,
+    rent_amount DECIMAL(10, 2) NOT NULL,
+    maintenance_charge DECIMAL(10, 2) DEFAULT 0.00,
+    total_due DECIMAL(10, 2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'PENDING', -- PENDING, PARTIAL, PAID, OVERDUE, ADVANCE
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS rent_payments (
+    id VARCHAR(36) PRIMARY KEY,
+    obligation_id VARCHAR(36) NOT NULL,
+    tenant_id VARCHAR(36) NOT NULL,
+    owner_id VARCHAR(36) NOT NULL,
+    amount_paid DECIMAL(10, 2) NOT NULL,
+    payment_date DATE NOT NULL,
+    payment_method VARCHAR(50) DEFAULT 'UPI',
+    transaction_id VARCHAR(100),
+    status VARCHAR(20) DEFAULT 'VERIFIED',
+    receipt_url VARCHAR(255),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (obligation_id) REFERENCES rent_obligations(id) ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS deposit_transactions (
+    id VARCHAR(36) PRIMARY KEY,
+    unit_id VARCHAR(36) NOT NULL,
+    tenant_id VARCHAR(36) NOT NULL,
+    owner_id VARCHAR(36) NOT NULL,
+    original_deposit DECIMAL(10, 2) NOT NULL,
+    wall_repair_deduction DECIMAL(10, 2) DEFAULT 0.00,
+    outstanding_rent_deduction DECIMAL(10, 2) DEFAULT 0.00,
+    other_deductions DECIMAL(10, 2) DEFAULT 0.00,
+    deduction_reasons TEXT,
+    final_refund_amount DECIMAL(10, 2) NOT NULL,
+    settlement_status VARCHAR(20) DEFAULT 'PENDING',
+    settlement_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS maintenance_requests (
+    id VARCHAR(36) PRIMARY KEY,
+    unit_id VARCHAR(36) NOT NULL,
+    tenant_id VARCHAR(36) NOT NULL,
+    owner_id VARCHAR(36) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT NOT NULL,
+    category VARCHAR(50) DEFAULT 'OTHER',
+    priority VARCHAR(20) DEFAULT 'MEDIUM',
+    status VARCHAR(20) DEFAULT 'REPORTED', -- REPORTED, IN_PROGRESS, RESOLVED, CLOSED
+    reported_date DATE NOT NULL,
+    resolution_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE CASCADE,
+    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS documents (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    property_id VARCHAR(36),
+    unit_id VARCHAR(36),
+    tenant_id VARCHAR(36),
+    title VARCHAR(200) NOT NULL,
+    doc_type VARCHAR(50) DEFAULT 'OTHER',
+    file_url VARCHAR(255) NOT NULL,
+    file_size INT DEFAULT 0,
+    mime_type VARCHAR(100),
+    extracted_text TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS evidence (
+    id VARCHAR(36) PRIMARY KEY,
+    maintenance_id VARCHAR(36),
+    payment_id VARCHAR(36),
+    user_id VARCHAR(36) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    file_url VARCHAR(255) NOT NULL,
+    file_type VARCHAR(50) DEFAULT 'IMAGE',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(50) DEFAULT 'GENERAL',
+    is_read BOOLEAN DEFAULT FALSE,
+    metadata_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS ai_conversations (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    title VARCHAR(200) DEFAULT 'New Conversation',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS ai_messages (
+    id VARCHAR(36) PRIMARY KEY,
+    conversation_id VARCHAR(36) NOT NULL,
+    sender VARCHAR(20) NOT NULL, -- USER or ASSISTANT
+    text TEXT NOT NULL,
+    language VARCHAR(10) DEFAULT 'en',
+    context_used_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE
+);

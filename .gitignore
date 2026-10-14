@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment Variables
+.env
+.env.local
+
+# Database files
+*.sqlite
+rentwise_fallback.sqlite
+
+# Build outputs
+dist/
+build/
+
+# Uploaded Media (ignore contents, keep directory)
+uploads/*
+!uploads/.gitkeep
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
