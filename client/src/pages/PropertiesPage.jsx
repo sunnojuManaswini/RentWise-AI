@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Building2, Plus, MapPin, Bed, Bath, Maximize2, Layers, X, Check } from 'lucide-react';
 import axios from 'axios';
+const API_BASE = (
+  import.meta.env.VITE_API_URL || ''
+).replace(/\/$/, '') + '/api';
 
 export default function PropertiesPage() {
   const { user } = useAuth();
@@ -22,7 +25,7 @@ export default function PropertiesPage() {
 
   const fetchProperties = async () => {
     try {
-      const res = await axios.get('/api/properties');
+      const res = await axios.get(`${API_BASE}/properties`);
       if (res.data.success) {
         setProperties(res.data.properties);
       }
@@ -36,7 +39,7 @@ export default function PropertiesPage() {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('/api/properties', formData);
+     const res = await axios.post(`${API_BASE}/properties`, formData);
       if (res.data.success) {
         setShowAddModal(false);
         fetchProperties();
@@ -53,7 +56,7 @@ export default function PropertiesPage() {
 
   const loadTree = async (propId) => {
     try {
-      const res = await axios.get(`/api/properties/${propId}/tree`);
+      const res = await axios.get(`${API_BASE}/properties/${propId}/tree`);
       if (res.data.success) {
         setSelectedPropertyTree(res.data.property);
       }
